@@ -6,3 +6,4 @@ gunicorn
 sentencepiece
 scipy
 requests
+python-dotenv
