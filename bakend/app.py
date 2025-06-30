@@ -5,11 +5,6 @@ from transformers import pipeline
 app = Flask(__name__)
 CORS(app)
 
-model_names = [
-    "MoritzLaurer/mDeBERTa-v3-base-mnli-xnli",
-    "facebook/bart-large-mnli",
-    "typeform/distilbert-base-uncased-mnli"
-]
 candidate_labels = [
     "Informative",
     "Promotional",
@@ -21,25 +16,15 @@ candidate_labels = [
     "Question"
 ]
 
-pipelines = [pipeline("zero-shot-classification", model=name) for name in model_names]
-
-def vote_label(results):
-    votes = {}
-    for res in results:
-        label = res["labels"][0]
-        votes[label] = votes.get(label, 0) + 1
-    return max(votes, key=votes.get)
+nlp = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
 
 @app.route("/classify", methods=["POST"])
 def classify():
     data = request.get_json()
     text = data.get("text", "")
-    all_results = []
-    for nlp in pipelines:
-        res = nlp(text, candidate_labels)
-        all_results.append(res)
-    label = vote_label(all_results)
-    scores = {i: [r["scores"][r["labels"].index(i)] if i in r["labels"] else 0 for r in all_results] for i in candidate_labels}
+    res = nlp(text, candidate_labels)
+    label = res["labels"][0]
+    scores = dict(zip(res["labels"], res["scores"]))
     return jsonify({"label": label, "scores": scores})
 
 if __name__ == "__main__":
