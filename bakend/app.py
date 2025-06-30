@@ -1,11 +1,18 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-from transformers import pipeline
+import requests
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
-candidate_labels = [
+API_URL = "https://api-inference.huggingface.co/models/typeform/distilbert-base-uncased-mnli"
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+CANDIDATE_LABELS = [
     "Informative",
     "Promotional",
     "Emotional",
@@ -16,13 +23,17 @@ candidate_labels = [
     "Question"
 ]
 
-nlp = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
-
 @app.route("/classify", methods=["POST"])
 def classify():
     data = request.get_json()
     text = data.get("text", "")
-    res = nlp(text, candidate_labels)
+    payload = {
+        "inputs": text,
+        "parameters": {"candidate_labels": CANDIDATE_LABELS}
+    }
+    headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+    response = requests.post(API_URL, headers=headers, json=payload)
+    res = response.json()
     label = res["labels"][0]
     scores = dict(zip(res["labels"], res["scores"]))
     return jsonify({"label": label, "scores": scores})
